@@ -1,16 +1,27 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// Invalid inputs must be rejected before the handler accesses the database.
 func TestRegisterRiderValidation(t *testing.T) {
+	testRegistrationValidation(t, "/auth/register/rider")
+}
+
+func TestRegisterDriverValidation(t *testing.T) {
+	testRegistrationValidation(t, "/auth/register/driver")
+}
+
+// Invalid inputs must be rejected before either handler accesses the database.
+func testRegistrationValidation(t *testing.T, path string) {
+	t.Helper()
 	tests := []struct {
 		name       string
 		body       string
@@ -85,7 +96,19 @@ func TestRegisterRiderValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			app := &application{}
 			router := app.setupRouter()
-			req := httptest.NewRequest(http.MethodPost, "/auth/register/rider", strings.NewReader(tt.body))
+			body := tt.body
+			if path == "/auth/register/driver" {
+				// Keep vehicle_type valid so these cases isolate email/password errors.
+				// Malformed JSON and empty bodies remain unchanged.
+				var input map[string]any
+				if err := json.Unmarshal([]byte(body), &input); err == nil && input != nil {
+					input["vehicle_type"] = "motorcycle"
+					encoded, err := json.Marshal(input)
+					require.NoError(t, err)
+					body = string(encoded)
+				}
+			}
+			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -98,6 +121,34 @@ func TestRegisterRiderValidation(t *testing.T) {
 			} else {
 				assert.JSONEq(t, `{"error":"invalid registration input"}`, w.Body.String())
 			}
+		})
+	}
+}
+
+func TestRegisterDriverVehicleValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{"missing vehicle type", `{"email":"driver@example.com","password":"password123"}`},
+		{"empty vehicle type", `{"email":"driver@example.com","password":"password123","vehicle_type":""}`},
+		{"unsupported vehicle type", `{"email":"driver@example.com","password":"password123","vehicle_type":"truck"}`},
+		{"wrong vehicle type casing", `{"email":"driver@example.com","password":"password123","vehicle_type":"Motorcycle"}`},
+		{"null vehicle type", `{"email":"driver@example.com","password":"password123","vehicle_type":null}`},
+		{"wrong vehicle type data type", `{"email":"driver@example.com","password":"password123","vehicle_type":123}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &application{}
+			req := httptest.NewRequest(http.MethodPost, "/auth/register/driver", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			app.setupRouter().ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.JSONEq(t, `{"error":"invalid registration input"}`, w.Body.String())
 		})
 	}
 }

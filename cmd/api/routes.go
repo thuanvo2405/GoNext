@@ -16,6 +16,7 @@ func (app *application) setupRouter() *gin.Engine {
 	})
 
 	router.POST("/auth/register/rider", app.registerRiderProfile)
+	router.POST("/auth/register/driver", app.registerDriverProfile)
 
 	return router
 }

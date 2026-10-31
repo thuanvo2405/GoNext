@@ -61,3 +61,58 @@ func (app *application) registerRiderProfile(c *gin.Context) {
 		"user":    user,
 	})
 }
+
+func (app *application) registerDriverProfile(c *gin.Context) {
+	var input struct {
+		Email       string `json:"email" binding:"required,email"`
+		Password    string `json:"password" binding:"required,min=8"`
+		VehicleType string `json:"vehicle_type" binding:"required,oneof=motorcycle car electric_car"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid registration input",
+		})
+		return
+	}
+
+	if len(input.Password) > 72 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "your password too long",
+		})
+		return
+	}
+
+	hashedPassword, err := password.HashPassword(input.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not process registration",
+		})
+		return
+	}
+
+	user := &data.User{
+		Email:    strings.ToLower(input.Email),
+		Password: hashedPassword,
+		Role:     "driver",
+	}
+
+	driver := &data.DriverProfile{
+		VehicleType: input.VehicleType,
+	}
+
+	if err := app.models.DriverProfile.Insert(c.Request.Context(), user, driver); err != nil {
+		switch {
+		case errors.Is(err, data.ErrDuplicateEmail):
+			c.JSON(http.StatusConflict, gin.H{"message": "Email is already, please try another"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong!"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Create Profile Successful",
+		"user":    user,
+	})
+}
