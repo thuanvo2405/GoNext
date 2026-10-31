@@ -17,6 +17,11 @@ func (app *application) setupRouter() *gin.Engine {
 
 	router.POST("/auth/register/rider", app.registerRiderProfile)
 	router.POST("/auth/register/driver", app.registerDriverProfile)
+	router.POST("/auth/login", app.loginHandler)
+
+	authenticated := router.Group("/")
+	authenticated.Use(app.Authenticate)
+	authenticated.GET("/auth/me", app.GetMe)
 
 	return router
 }

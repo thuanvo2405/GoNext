@@ -116,3 +116,63 @@ func (app *application) registerDriverProfile(c *gin.Context) {
 		"user":    user,
 	})
 }
+
+func (app *application) loginHandler(c *gin.Context) {
+	var input struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid login input",
+		})
+		return
+	}
+
+	if len(input.Password) > 72 {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid email or password",
+		})
+		return
+	}
+
+	user, err := app.models.Users.GetByEmail(c.Request.Context(), strings.ToLower(input.Email))
+	if errors.Is(err, data.ErrRecordNotFound) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid email or password",
+		})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not process login",
+		})
+		return
+	}
+
+	if !password.Verify(input.Password, user.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid email or password",
+		})
+		return
+	}
+
+	accessToken, err := app.tokens.Sign(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "credentials verified",
+		"user":    user,
+		"token":   accessToken,
+	})
+}
+
+func (app *application) GetMe(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": c.GetString("userId"),
+	})
+}

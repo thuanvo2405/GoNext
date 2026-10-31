@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thuanvo2405/GoNext/internal/data"
+	"github.com/thuanvo2405/GoNext/internal/token"
 )
 
 type config struct {
@@ -17,19 +18,31 @@ type config struct {
 	db   struct {
 		dsn string
 	}
+	jwt struct {
+		secret string
+		ttl    time.Duration
+	}
 }
 
 type application struct {
 	config config
 	models data.Models
+	tokens *token.Manager
 }
 
 func main() {
 	var cfg config
 	flag.IntVar(&cfg.port, "port", 4000, "HTTP network address")
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("DATABASE_URL"), "PostgresSQL DSN")
+	flag.DurationVar(&cfg.jwt.ttl, "jwt-ttl", 30*time.Minute, "JWT access token lifetime")
+	flag.StringVar(&cfg.jwt.secret, "jwt-secret", os.Getenv("JWT_SECRET"), "JWT signing secret")
 
 	flag.Parse()
+
+	tokens, err := token.NewManager(cfg.jwt.secret, cfg.jwt.ttl)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	db, err := pgxpool.New(context.Background(), cfg.db.dsn)
 	if err != nil {
@@ -41,6 +54,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		models: data.NewModels(db),
+		tokens: tokens,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
