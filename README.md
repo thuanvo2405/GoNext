@@ -1,67 +1,35 @@
 # GoNext
 
-A mini ride-hailing application built with Go and Gin.
+A mini ride-hailing application focused on backend development.
 
-## Local development
+## Stack
 
-Requirements: Go, Docker, and Docker Compose.
+- Go, Gin, PostgreSQL, pgxpool, Goose
+- Planned: RabbitMQ, WebSocket, Next.js
 
-### PostgreSQL
+## Current Features
 
-Start PostgreSQL:
+- Rider registration with input validation and bcrypt password hashing
+- Case-insensitive duplicate email protection
+- User and driver profile database schemas
+
+## Run Locally
+
+Requires Go, Docker Compose, and the Goose CLI. From the project root:
 
 ```sh
 docker compose up -d postgres
-docker compose ps
-```
-
-The default local connection settings are:
-
-- Host: `127.0.0.1`
-- Port: `5432`
-- Database/user: `gonext`
-- Password: `gonext_local_password` (local development only)
-
-Compose works without a `.env` file. To change these defaults, copy
-`.env.example` to `.env` and edit it. If port 5432 is already occupied, set
-`POSTGRES_PORT=5433`; use that port when connecting from the host.
-
-The container running does not guarantee PostgreSQL is ready. Verify a database
-connection inside the container (retry after a few seconds if it is still starting):
-
-```sh
-docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT current_database(), current_user;"'
-```
-
-Stop the service:
-
-```sh
-docker compose down
-```
-
-The named volume preserves database data across container recreation.
-Do not add `--volumes` to the shutdown command unless you intend to delete
-the database data. Initialization settings apply only to an empty data volume;
-changing the configured password does not update an existing database user.
-
-### API
-
-Run Go directly on the host:
-
-```sh
+export DATABASE_URL='postgres://gonext:gonext_local_password@127.0.0.1:5432/gonext?sslmode=disable'
+goose -env=none -dir migrations postgres "$DATABASE_URL" up
 go run ./cmd/api
 ```
 
-In another terminal:
+The URL above uses the Compose defaults; adjust it to match your local database.
+The API reads process environment variables, not `.env` automatically.
+Default API address: `http://localhost:4000`.
+
+## Unit Tests
 
 ```sh
-curl -i http://localhost:8080/health
-```
-
-The API currently serves `/health`; database integration is not implemented yet.
-
-### Tests
-
-```sh
-go test -v ./...
+go test ./...
 ```

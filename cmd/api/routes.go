@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupRouter() *gin.Engine {
+func (app *application) setupRouter() *gin.Engine {
 	router := gin.Default()
 
 	router.GET("/health", func(c *gin.Context) {
@@ -14,6 +14,8 @@ func setupRouter() *gin.Engine {
 			"status": "ok",
 		})
 	})
+
+	router.POST("/auth/register/rider", app.registerRiderProfile)
 
 	return router
 }

@@ -9,12 +9,13 @@ import (
 )
 
 func TestHealthRoute(t *testing.T) {
-	router := setupRouter()
+	app := &application{}
+	router := app.setupRouter()
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `{"status":"ok"}`, w.Body.String())
+	assert.JSONEq(t, `{"status":"ok"}`, w.Body.String())
 }
