@@ -172,7 +172,16 @@ func (app *application) loginHandler(c *gin.Context) {
 }
 
 func (app *application) GetMe(c *gin.Context) {
+	value, exists := c.Get("user")
+	user, ok := value.(*data.User)
+	if !exists || !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "invalid user context",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"user_id": c.GetString("userId"),
+		"user": user,
 	})
 }

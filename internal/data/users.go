@@ -26,16 +26,36 @@ type UserModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m *UserModel) GetByEmail(ctx context.Context, email string) (*User, error) {
+func (m *UserModel) GetByID(ctx context.Context, id string) (*User, error) {
+	stmt := `SELECT id, email, role FROM users WHERE id = $1`
+
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	args := []any{id}
+
 	var user User
-	err := m.DB.QueryRow(ctx, `
-		SELECT id, email, password_hash, role
-		FROM users
-		WHERE lower(email) = lower($1)
-	`, email).Scan(&user.ID, &user.Email, &user.Password, &user.Role)
+	err := m.DB.QueryRow(ctx, stmt, args...).Scan(&user.ID, &user.Email, &user.Role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRecordNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (m *UserModel) GetByEmail(ctx context.Context, email string) (*User, error) {
+	stmt := `SELECT id, email, password_hash, role FROM users WHERE lower(email) = lower($1)`
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	args := []any{email}
+
+	var user User
+	err := m.DB.QueryRow(ctx, stmt, args...).Scan(&user.ID, &user.Email, &user.Password, &user.Role)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrRecordNotFound
 	}

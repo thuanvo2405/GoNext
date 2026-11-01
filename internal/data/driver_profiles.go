@@ -49,7 +49,9 @@ func (m *DriverProfileModel) Insert(ctx context.Context, user *User, driver *Dri
 
 	stmt = `INSERT INTO driver_profiles(user_id, vehicle_type) VALUES($1, $2)`
 
-	_, err = tx.Exec(ctx, stmt, userID, driver.VehicleType)
+	args = []any{userID, driver.VehicleType}
+
+	_, err = tx.Exec(ctx, stmt, args...)
 	if err != nil {
 		return err
 	}
