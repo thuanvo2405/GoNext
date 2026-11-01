@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -17,6 +18,24 @@ type DriverProfile struct {
 
 type DriverProfileModel struct {
 	DB *pgxpool.Pool
+}
+
+func (m *DriverProfileModel) UpdateAvailability(ctx context.Context, userID string, isAvailable bool) (*DriverProfile, error) {
+	stmt := `UPDATE driver_profiles SET is_available = $2 WHERE user_id = $1 RETURNING user_id, vehicle_type, is_available`
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	args := []any{userID, isAvailable}
+	var driver DriverProfile
+	err := m.DB.QueryRow(ctx, stmt, args...).Scan(&driver.UserID, &driver.VehicleType, &driver.IsAvailable)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRecordNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &driver, nil
 }
 
 func (m *DriverProfileModel) Insert(ctx context.Context, user *User, driver *DriverProfile) error {

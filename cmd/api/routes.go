@@ -23,5 +23,9 @@ func (app *application) setupRouter() *gin.Engine {
 	authenticated.Use(app.Authenticate)
 	authenticated.GET("/auth/me", app.GetMe)
 
+	drivers := authenticated.Group("/drivers")
+	drivers.Use(app.RequireRole("driver"))
+	drivers.PATCH("/availability", app.updateDriverAvailability)
+
 	return router
 }
