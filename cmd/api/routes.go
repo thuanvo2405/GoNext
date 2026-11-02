@@ -27,5 +27,9 @@ func (app *application) setupRouter() *gin.Engine {
 	drivers.Use(app.RequireRole("driver"))
 	drivers.PATCH("/availability", app.updateDriverAvailability)
 
+	riders := authenticated.Group("/rides")
+	riders.Use(app.RequireRole("rider"))
+	riders.POST("/estimate", app.estimateFareHandler)
+
 	return router
 }
